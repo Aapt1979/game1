@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Letter Sound Memory Match</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* Custom CSS for visual appeal */
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #FF6B6B, #FFD93D, #6BCB77); /* Bright, cheerful gradient */
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .card-container {
+            perspective: 1000px; /* For 3D flip effect */
+            height: 120px;
+            width: 80px;
+        }
+
+        .card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s ease-in-out;
+            border-radius: 12px;
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+        }
+
+        .card-inner {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            line-height: 120px;
+            font-size: 24px;
+            font-weight: 900;
+            color: #333;
+            border-radius: 12px;
+            backface-visibility: hidden;
+        }
+
+        .card-face-down {
+            background-color: #4A90E2; /* Bright blue for the back */
+            color: white;
+            font-size: 1.5rem;
+            transform: rotateY(0deg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .card-face-up {
+            background-color: #ffffff;
+            transform: rotateY(180deg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.25rem;
+            line-height: 1.5;
+            padding: 5px;
+        }
+        
+        /* Card is flipped */
+        .flipped .card {
+            transform: rotateY(180deg);
+        }
+
+        /* Card has been matched and disappears */
+        .matched {
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s 0.6s, opacity 0.6s linear;
+        }
+
+        /* Styling for the picture card content */
+        .card-face-up .picture-content {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #16A085;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            line-height: 1.1;
+        }
+        .card-face-up .picture-content .emoji {
+            font-size: 30px;
+        }
+
+        /* Game Over Modal */
+        #gameOverModal {
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none;
+        }
+        #gameOverModal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Responsive grid adjustment */
+        @media (min-width: 640px) {
+            .card-container {
+                height: 150px;
+                width: 100px;
+            }
+        }
+    </style>
+</head>
+<body class="selection:bg-yellow-300 selection:text-gray-900">
+
+    <!-- Game Container -->
+    <div id="game-area" class="w-full max-w-4xl p-6 bg-white bg-opacity-95 rounded-2xl shadow-2xl">
+        
+        <!-- Header: Timer and Attempts -->
+        <div class="flex justify-between items-center mb-6 p-4 bg-gray-100 rounded-xl shadow-inner">
+            <div class="flex items-center space-x-2 text-xl font-bold text-blue-700">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span id="timer">0:00</span>
+            </div>
+            <div class="text-3xl font-black text-gray-800 tracking-wider">
+                SOUND MATCH
+            </div>
+            <div class="flex items-center space-x-2 text-xl font-bold text-red-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <span>Tries: </span>
+                <span id="tries-count">0</span>
+            </div>
+        </div>
+
+        <!-- Game Board Grid -->
+        <div id="game-board" class="grid grid-cols-6 gap-4 sm:gap-6 justify-items-center">
+            <!-- Cards will be injected here by JavaScript -->
+        </div>
+
+        <!-- Button to restart the game -->
+        <div class="mt-8 flex justify-center">
+            <button id="restart-button" class="px-8 py-3 text-lg font-bold text-white bg-pink-500 hover:bg-pink-600 rounded-full shadow-lg transform hover:scale-105 transition duration-300">
+                Restart Game
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="gameOverModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 z-50">
+        <div class="bg-white p-8 rounded-xl shadow-3xl text-center max-w-sm w-full transform transition-all duration-300 scale-95" id="modal-content">
+            <h2 class="text-4xl font-black text-green-600 mb-4">🎉 Congratulations!</h2>
+            <p class="text-gray-700 text-lg mb-4">You matched all the letter sounds!</p>
+            <div class="space-y-2 mb-6">
+                <p class="text-xl font-semibold">Final Time: <span id="final-time" class="text-blue-500"></span></p>
+                <p class="text-xl font-semibold">Total Tries: <span id="final-tries" class="text-red-500"></span></p>
+            </div>
+            <button id="modal-restart-button" class="px-6 py-3 text-lg font-bold text-white bg-green-500 hover:bg-green-600 rounded-full shadow-md transition duration-200">
+                Play Again
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const cardSets = [
+            { id: 'A', uppercase: 'A', lowercase: 'a', picture: { emoji: '🍎', text: 'Apple' } },
+            { id: 'B', uppercase: 'B', lowercase: 'b', picture: { emoji: '🍌', text: 'Banana' } },
+            { id: 'C', uppercase: 'C', lowercase: 'c', picture: { emoji: '🐈', text: 'Cat' } },
+            { id: 'E', uppercase: 'E', lowercase: 'e', picture: { emoji: '🥚', text: 'Egg' } },
+            { id: 'S', uppercase: 'S', lowercase: 's', picture: { emoji: '🐍', text: 'Snake' } },
+            { id: 'T', uppercase: 'T', lowercase: 't', picture: { emoji: '📺', text: 'Television' } }
+        ];
+
+        let cards = [];
+        let flippedCards = [];
+        let matchCount = 0;
+        let tries = 0;
+        let timerInterval = null;
+        let startTime = 0;
+        let gameActive = false;
+        let lockBoard = false; // Used to prevent clicking during flip/check delay
+
+        const gameBoard = document.getElementById('game-board');
+        const timerDisplay = document.getElementById('timer');
+        const triesDisplay = document.getElementById('tries-count');
+        const restartButton = document.getElementById('restart-button');
+        const modal = document.getElementById('gameOverModal');
+        const modalRestartButton = document.getElementById('modal-restart-button');
+
+        // --- Helper Functions ---
+
+        // Simple Fisher-Yates shuffle algorithm
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function formatTime(totalSeconds) {
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+        }
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+                timerDisplay.textContent = formatTime(elapsedSeconds);
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        // --- Game Logic ---
+
+        function createCards() {
+            const newCards = [];
+            cardSets.forEach(set => {
+                // Uppercase card
+                newCards.push({ id: set.id, type: 'upper', content: set.uppercase });
+                // Lowercase card
+                newCards.push({ id: set.id, type: 'lower', content: set.lowercase });
+                // Picture card
+                newCards.push({ id: set.id, type: 'picture', content: `<div class="picture-content"><span class="emoji">${set.picture.emoji}</span>${set.picture.text}</div>` });
+            });
+            shuffle(newCards);
+            return newCards;
+        }
+
+        function renderCards() {
+            gameBoard.innerHTML = '';
+            cards.forEach((card, index) => {
+                const cardContainer = document.createElement('div');
+                cardContainer.className = `card-container`;
+                cardContainer.dataset.index = index;
+                cardContainer.addEventListener('click', () => handleCardClick(cardContainer, card));
+
+                cardContainer.innerHTML = `
+                    <div class="card">
+                        <div class="card-inner card-face-down text-4xl">?</div>
+                        <div class="card-inner card-face-up">
+                            ${card.content}
+                        </div>
+                    </div>
+                `;
+                gameBoard.appendChild(cardContainer);
+            });
+        }
+
+        function handleCardClick(container, cardData) {
+            if (!gameActive || lockBoard || container.classList.contains('flipped') || container.classList.contains('matched')) {
+                return;
+            }
+
+            // Start timer on first click
+            if (flippedCards.length === 0 && tries === 0 && matchCount === 0) {
+                startTimer();
+            }
+
+            container.classList.add('flipped');
+            flippedCards.push({ element: container, data: cardData });
+
+            if (flippedCards.length === 3) {
+                lockBoard = true;
+                checkForMatch();
+            }
+        }
+
+        function checkForMatch() {
+            const [card1, card2, card3] = flippedCards.map(fc => fc.data.id);
+            const isMatch = (card1 === card2) && (card2 === card3);
+
+            if (isMatch) {
+                // Match found!
+                matchCount++;
+                flippedCards.forEach(fc => {
+                    fc.element.classList.add('matched');
+                    // Prevent future clicks on matched cards
+                    fc.element.removeEventListener('click', fc.element.listener);
+                });
+                resetTurn(0); // Reset immediately
+
+                if (matchCount === cardSets.length) {
+                    endGame();
+                }
+            } else {
+                // No match. Increment tries and flip back after delay.
+                tries++;
+                triesDisplay.textContent = tries;
+                setTimeout(() => {
+                    flippedCards.forEach(fc => fc.element.classList.remove('flipped'));
+                    resetTurn(0);
+                }, 1200); // Cards flip back after 1.2 seconds
+            }
+        }
+
+        function resetTurn(delay) {
+            setTimeout(() => {
+                flippedCards = [];
+                lockBoard = false;
+            }, delay);
+        }
+        
+        function endGame() {
+            stopTimer();
+            gameActive = false;
+            
+            const finalTime = timerDisplay.textContent;
+            document.getElementById('final-time').textContent = finalTime;
+            document.getElementById('final-tries').textContent = tries;
+
+            modal.classList.add('active');
+            
+            // Add a slight transformation for visual pop
+            document.getElementById('modal-content').classList.remove('scale-95');
+            document.getElementById('modal-content').classList.add('scale-100');
+        }
+
+        function initGame() {
+            stopTimer();
+            cards = createCards();
+            renderCards();
+
+            flippedCards = [];
+            matchCount = 0;
+            tries = 0;
+            lockBoard = false;
+            gameActive = true;
+            timerDisplay.textContent = '0:00';
+            triesDisplay.textContent = tries;
+            modal.classList.remove('active');
+            document.getElementById('modal-content').classList.remove('scale-100');
+            document.getElementById('modal-content').classList.add('scale-95');
+        }
+
+        // --- Event Listeners ---
+        window.onload = initGame;
+        restartButton.addEventListener('click', initGame);
+        modalRestartButton.addEventListener('click', initGame);
+
+    </script>
+</body>
+</html>
